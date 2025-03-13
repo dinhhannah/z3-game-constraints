@@ -1,3 +1,5 @@
+import EasyStar from "easystarjs"
+import { my } from "../main"
 export class Pathfinder extends Phaser.Scene {
     constructor() {
         super("pathfinderScene");
@@ -7,13 +9,12 @@ export class Pathfinder extends Phaser.Scene {
     }
 
     init() {
+        this.my = {sprite:{}}
         this.TILESIZE = 16;
         this.SCALE = 2.0;
         this.TILEWIDTH = 40;
         this.TILEHEIGHT = 25;
     }
-
-
 
     create() {
         // Create a new tilemap which uses 16x16 tiles, and is 40 tiles wide and 25 tiles tall
@@ -51,7 +52,7 @@ export class Pathfinder extends Phaser.Scene {
         // Tell EasyStar which tiles can be walked on
         this.finder.setAcceptableTiles(walkables);
 
-        this.activeCharacter = my.sprite.purpleTownie;
+        this.activeCharacter = this.my.sprite.purpleTownie;
 
         // Handle mouse clicks
         // Handles the clicks on the map to make the character move

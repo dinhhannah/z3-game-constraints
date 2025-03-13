@@ -31,11 +31,9 @@ let config = {
     scene: [Load, Pathfinder]
 }
 
-var cursors;
-const SCALE = 2.0;
-var my = {sprite: {}};
-
-console.log("hi")
+export var cursors;
+export const SCALE = 2.0;
+export var my = {sprite: {}};
 
 const game = new Game(config);
 
