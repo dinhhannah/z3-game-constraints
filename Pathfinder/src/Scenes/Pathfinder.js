@@ -1,8 +1,45 @@
 import EasyStar from "easystarjs"
 import { my } from "../main"
-export class Pathfinder extends Phaser.Scene {
+import { find } from "../z3"
+
+// Area of top fence
+const fence1_area= {
+    left: 34,
+    right: 38,
+    bottom: 6,
+    top: 2,
+};
+
+// Area of bottom fence
+const fence2_area = {
+    left: 21,
+    right: 29,
+    bottom: 20,
+    top: 17,
+};
+
+const forest_area = {
+    left: 11,
+    right: 23,
+    bottom: 12,
+    top: 1,
+};
+
+// var in_fence1 = await find([], fence1_area);
+// var in_fence2 = await find([], fence2_area);
+// var in_forest = await find([], forest_area);
+// var tiles_put = [];
+
+// console.log("Fence 1 Tiles:", in_fence1);
+// console.log("Fence 2 Tiles:", in_fence2);
+// console.log("Forest Tiles:", in_forest);
+
+export class Pathfinder extends Phaser.Scene{
     constructor() {
         super("pathfinderScene");
+        // this.in_fence1 = [];
+        // this.in_fence2 = [];
+        // this.in_forest = [];
     }
 
     preload() {
@@ -16,7 +53,16 @@ export class Pathfinder extends Phaser.Scene {
         this.TILEHEIGHT = 25;
     }
 
-    create() {
+    async create(){
+        // var in_fence1 = await find([], fence1_area);
+        // var in_fence2 = await find([], fence2_area);
+        // var in_forest = await find([], forest_area);
+        // var tiles_put = [];
+
+        // console.log("Fence 1 Tiles:", in_fence1);
+        // console.log("Fence 2 Tiles:", in_fence2);
+        // console.log("Forest Tiles:", in_forest);
+        
         // Create a new tilemap which uses 16x16 tiles, and is 40 tiles wide and 25 tiles tall
         this.map = this.add.tilemap("three-farmhouses", this.TILESIZE, this.TILESIZE, this.TILEHEIGHT, this.TILEWIDTH);
 
@@ -30,7 +76,7 @@ export class Pathfinder extends Phaser.Scene {
 
         // Create townsfolk sprite
         // Use setOrigin() to ensure the tile space computations work well
-       this.my.sprite.purpleTownie = this.add.sprite(this.tileXtoWorld(5), this.tileYtoWorld(5), "purple").setOrigin(0,0);
+        this.my.sprite.purpleTownie = this.add.sprite(this.tileXtoWorld(5), this.tileYtoWorld(5), "purple").setOrigin(0,0);
         
         // Camera settings
         this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
@@ -58,14 +104,18 @@ export class Pathfinder extends Phaser.Scene {
         // Handles the clicks on the map to make the character move
         // The this parameter passes the current "this" context to the
         // function this.handleClick()
-        this.input.on('pointerup',this.handleClick, this);
+        this.input.on('pointerup', this.handleClick, this);
 
         this.cKey = this.input.keyboard.addKey('C');
-        this.lowCost = false;
+        this.pKey = this.input.keyboard.addKey('P');
+        this.eKey = this.input.keyboard.addKey('E');
 
+        this.lowCost = false;
     }
 
+
     update() {
+
         if (Phaser.Input.Keyboard.JustDown(this.cKey)) {
             if (!this.lowCost) {
                 // Make the path low cost with respect to grassy areas
@@ -77,6 +127,72 @@ export class Pathfinder extends Phaser.Scene {
                 this.lowCost = false;
             }
         }
+        
+        // Press P to place assets
+        if (Phaser.Input.Keyboard.JustDown(this.pKey)) {
+            console.log("Placed"); // Debugging
+            this.put(this.in_fence1, 58);
+            this.put(this.in_fence2, 58);
+            this.put(this.in_forest, 30);
+            this.map.render;
+        }
+
+        // Press E to erase assets that were placed
+        if (Phaser.Input.Keyboard.JustDown(this.eKey)) {
+            console.log("Erased"); // Debugging
+            this.clear();
+            this.map.render;
+        }
+    }
+
+    avoid(values) {
+        const layer = this.map.getLayer("Trees-n-Bushes").tilemapLayer;
+        const updatedVals = values.filter(({ xVal, yVal }) => {
+            const tile = layer.getTileAt(xVal, yVal);
+            if (tile) {
+                return false;
+            }
+        
+            return true;
+        });
+        
+        return updatedVals;
+      }
+
+    put(values, tile_id) {
+        if (values.length == 0) {
+            console.log("No valid tile positions available.");
+            return;
+        }
+
+        values = this.avoid(values);
+        console.log("Available tiles after avoid:", values); // Debugging
+
+        if (values.length === 0) {
+            console.log("No tiles left after filtering.");
+            return;
+        }
+
+        let random = Phaser.Math.Between(0, values.length - 1);
+        var tile = values.splice(random, 1)[0];
+
+        console.log("Placing tile at:", tile.xVal, tile.yVal); // Debugging
+
+        const layer = this.map.getLayer("Houses-n-Fences").tilemapLayer;
+        const { xVal, yVal } = tile;
+        tiles_put.push(tile);
+        return layer.putTileAt(tile_id, xVal, yVal);
+    }
+
+    clear() {
+        console.log(tiles_put);
+
+        const layer = this.map.getLayer("Houses-n-Fences").tilemapLayer;
+        tiles_put.forEach(({ xVal, yVal }) => {
+          layer.removeTileAt(xVal, yVal);
+        });
+    
+        tiles_put = [];
     }
 
     resetCost(tileset) {
@@ -105,12 +221,14 @@ export class Pathfinder extends Phaser.Scene {
     // This array can then be given to Easystar for use in path finding.
     layersToGrid() {
         let grid = [];
-        // Initialize grid as two-dimensional array
-        // TODO: write initialization code
-
-        // Loop over layers to find tile IDs, store in grid
-        // TODO: write this loop
-
+        for (let y = 0; y < this.TILEHEIGHT; y++) {
+            grid[y] = [];
+            for (let x = 0; x < this.TILEWIDTH; x++) {
+                // Get the tile ID from the ground layer (or any other layer)
+                let tile = this.groundLayer.getTileAt(x, y);
+                grid[y][x] = tile ? tile.index : 0; // Use 0 or any default value for empty tiles
+            }
+        }
         return grid;
     }
 
@@ -162,9 +280,11 @@ export class Pathfinder extends Phaser.Scene {
     // uses the value of the cost property to inform EasyStar, using EasyStar's
     // setTileCost(tileID, tileCost) function.
     setCost(tileset) {
-        // TODO: write this function
+        for (let tileID = tileset.firstgid; tileID < tileset.total; tileID++) {
+            let props = tileset.getTileProperties(tileID);
+            if (props && props.cost != null) {
+                this.finder.setTileCost(tileID, props.cost);
+            }
+        }
     }
-
-
-
 }

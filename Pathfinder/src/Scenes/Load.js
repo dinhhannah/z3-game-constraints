@@ -1,4 +1,5 @@
 import { Scene } from "phaser";
+
 export class Load extends Scene {
     constructor() {
         super("loadScene");
